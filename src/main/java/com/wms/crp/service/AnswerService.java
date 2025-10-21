@@ -13,7 +13,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +25,6 @@ public class AnswerService {
     private final CustomerAnswerRepository answerRepository;
     private final AuditEventProducer auditEventProducer;
     private final RestTemplate restTemplate = new RestTemplate();
-    private final JdbcTemplate jdbcTemplate;
 
     @Value("${services.customer.base-url:http://localhost:8080}")
     private String customerBaseUrl;
@@ -66,20 +64,7 @@ public class AnswerService {
         } catch (Exception ex) {
             log.warn("Failed REST update risk profile: {}", ex.getMessage());
         }
-        if (!updated) {
-            // Fallback direct DB update (same schema), to guarantee FK is set
-            try {
-                String sql = String.format("update %s set %s=? where %s=?",
-                        com.wms.crp.entity.EntityNames.MST_CUSTOMER,
-                        com.wms.crp.entity.EntityNames.MstCustomer.ID_RISK_PROFILE,
-                        com.wms.crp.entity.EntityNames.MstCustomer.CUSTOMER_ID);
-                int updatedRows = jdbcTemplate.update(sql,
-                        score.getRiskProfile().getRiskProfileId(), customerId);
-                log.info("Fallback DB update risk profile rows={} customerId={}", updatedRows, customerId);
-            } catch (Exception e) {
-                log.error("Fallback DB update risk profile failed: {}", e.getMessage());
-            }
-        }
+        // If REST notify fails, we log and continue without cross-service DB writes
 
 
 
